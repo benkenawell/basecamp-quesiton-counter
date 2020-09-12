@@ -109,10 +109,11 @@ where
     }
 }
 
-pub fn get_auth_token() -> String { // TODO, should probably return the Access Token, not a String
+// TODO, I might still be able to do better with this return type, but I like it better than the String
+pub fn get_auth_token(c_id: String, c_secret: String) -> Result<SpecialTokenResponse, String> {
   // DO NOT ADD TO VCS
-  let client_id = ClientId::new("".to_string());
-  let client_secret = ClientSecret::new("".to_string());
+  let client_id = ClientId::new(c_id);
+  let client_secret = ClientSecret::new(c_secret);
   let auth_url = AuthUrl::new("https://launchpad.37signals.com/authorization/new?type=web_server".to_string())
     .expect("Invalid authorization endpoint URL");
   let token_url = TokenUrl::new("https://launchpad.37signals.com/authorization/token?type=web_server".to_string())
@@ -227,7 +228,7 @@ pub fn get_auth_token() -> String { // TODO, should probably return the Access T
           };
           println!("Basecamp returned the following scopes:\n{:?}\n", scopes);
 
-          return token.access_token().secret().to_string();
+          return Ok(token);
       }
 
       // The server will terminate itself after collecting the first code.
@@ -235,5 +236,5 @@ pub fn get_auth_token() -> String { // TODO, should probably return the Access T
       
     }
   }
-  String::from("")
+  Err(String::from("Failed the test!"))
 }

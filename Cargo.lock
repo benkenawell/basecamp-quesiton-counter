@@ -63,6 +63,7 @@ dependencies = [
  "oauth2",
  "reqwest 0.10.8",
  "serde",
+ "serde_json",
  "url 2.1.1",
 ]
 
