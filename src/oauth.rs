@@ -37,7 +37,7 @@ fn default_token_type() -> Option<BasicTokenType> {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NonStandardTokenResponse<EF: ExtraTokenFields> {
     access_token: AccessToken,
-    // In this example wunderlist does not follow the RFC specs and don't return the
+    // basecamp does not follow the RFC specs and doesn't return the
     // token_type. `NonStandardTokenResponse` makes the `token_type` optional.
     #[serde(default = "default_token_type")]
     token_type: Option<BasicTokenType>,
@@ -196,8 +196,6 @@ pub fn get_auth_token(c_id: String, c_secret: String) -> Result<SpecialTokenResp
       );
       stream.write_all(response.as_bytes()).unwrap();
 
-      println!("Basecamp returned this structure: \n{:#?}\n", code);
-      println!("Basecamp returned the following code:\n{}\n", code.secret());
       println!(
         "Basecamp returned the following state:\n{} (expected `{}`)\n",
         state.secret(),
@@ -206,8 +204,6 @@ pub fn get_auth_token(c_id: String, c_secret: String) -> Result<SpecialTokenResp
 
       // Exchange the code with a token.
       let token_res = client.exchange_code(code).set_pkce_verifier(pkce_verifier).request(http_client);
-      println!("client {:?}", client);
-      println!("token_res {:?}", token_res);
 
       println!("Basecamp returned the following token:\n{:?}\n", token_res);
 
@@ -217,7 +213,7 @@ pub fn get_auth_token(c_id: String, c_secret: String) -> Result<SpecialTokenResp
           // space-separated scopes. Github-specific clients can parse this scope into
           // multiple scopes by splitting at the commas. Note that it's not safe for the
           // library to do this by default because RFC 6749 allows scopes to contain commas.
-          let scopes = if let Some(scopes_vec) = token.scopes() {
+          let _scopes = if let Some(scopes_vec) = token.scopes() {
               scopes_vec
                   .iter()
                   .map(|comma_separated| comma_separated.split(','))
@@ -226,7 +222,7 @@ pub fn get_auth_token(c_id: String, c_secret: String) -> Result<SpecialTokenResp
           } else {
               Vec::new()
           };
-          println!("Basecamp returned the following scopes:\n{:?}\n", scopes);
+          // println!("Basecamp returned the following scopes:\n{:?}\n", scopes);
 
           return Ok(token);
       }
