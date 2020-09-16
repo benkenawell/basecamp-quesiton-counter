@@ -44,30 +44,114 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Project: {} \n Purpose: {}",projects_json[0]["name"], projects_json[0]["purpose"]);
 
     // print out the names of all the projects
-    let project_names: Vec<&str> = projects_json.as_array().unwrap().iter()
-        .map(|project| project["name"].as_str().unwrap()).collect(); // must use as_str, NOT to_string
-    println!("All project names: {:?}", project_names );
+    // let project_names: Vec<&str> = projects_json.as_array().unwrap().iter()
+    //     .map(|project| project["name"].as_str().unwrap()).collect(); // must use as_str, NOT to_string
+    // println!("All project names: {:?}", project_names );
     
     // get the project I want
     let family_project = projects_json.as_array().unwrap().iter()
         .find(|project| project["name"].as_str().unwrap().eq(&String::from("Family"))).unwrap();
     println!("Family Project: {}", family_project);
     
+    // print all names from the dock
+    // let dock_names: Vec<&str> = family_project["dock"].as_array().unwrap().iter()
+    //     .map(|dock_item| dock_item["name"].as_str().unwrap()).collect();
+    // println!("dock names {:?}", dock_names);
+
     // use the dock property to find the "questionnaire" value of the "name" property
     let questionnaire = family_project["dock"].as_array().unwrap().iter()
         .find(|dock| dock["name"].as_str().unwrap().eq(&String::from("questionnaire"))).unwrap();
     println!("Questionnaire: {}", questionnaire);
 
-    // 3. may not need to get the questionnaires... there might be one per project?
+    // 3. get the questionnaire so I have the questions url
+    let questionnaire_url = questionnaire["url"].as_str().unwrap().to_string();
+    let questionnaire_info = client.get(&questionnaire_url).send()?.text()?;
+    println!("\n questionnaire info {}", questionnaire_info);
+    let questionnaire_json: serde_json::Value = serde_json::from_str(&questionnaire_info)?;
 
     // 4. get the questions
-    let base_url = questionnaire["app_url"].as_str().unwrap();
-    let questions_url = [base_url.to_string(), "/questions.json".to_string()].concat();
-    let questions = client.get(&questions_url).send()?.text()?; // TODO, why does this return nothing?
+    let questions_url = questionnaire_json["questions_url"].as_str().unwrap().to_string();
+    let questions = client.get(&questions_url).send()?.text()?;
+    let questions_json: serde_json::Value = serde_json::from_str(&questions)?;
     println!("questions! {:?}", questions);
+
+    // find the running question I'm looking for
+    let run_question = questions_json.as_array().unwrap().iter()
+        .find(|question| question["title"].as_str().unwrap().eq(&String::from("Did you get to run today?"))).unwrap();
+    println!("question: {:?} \nanswer url: {:?}", run_question["title"], run_question["answers_url"]);
+
+    // 5. get the answers, and parse!
+    let answer_url = run_question["answers_url"].as_str().unwrap().to_string();
+    let answers = client.get(&answer_url).send()?.json::<Vec<Answer>>()?;
+    println!("answers! {:?}", answers);
 
     Ok(())
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Answer {
+    id: u64,
+    status: String,
+    visible_to_clients: bool,
+    created_at: String,
+    updated_at: String,
+    title: String,
+    inherits_status: bool,
+    r#type: String,
+    url: String,
+    app_url: String,
+    bookmark_url: String,
+    subscription_url: String,
+    comments_count: u64,
+    comments_url: String,
+    parent: Parent,
+    bucket: Bucket,
+    creator: Creator,
+    content: String,
+    group_on: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Parent {
+    id: u64,
+    title: String,
+    r#type: String,
+    url: String,
+    app_url: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Bucket {
+    id: u64,
+    name: String,
+    r#type: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Creator {
+    id: u64,
+    attachable_sgid: String,
+    name: String,
+    email_address: String,
+    personable_type: String,
+    title: Option<String>,
+    bio: Option<String>,
+    created_at: String,
+    updated_at: String,
+    admin: bool,
+    owner: bool,
+    client: bool,
+    time_zone: String,
+    avatar_url: String,
+    company: Company,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Company {
+    id: u64,
+    name: String,
+}
+
 
 #[derive(Serialize, Deserialize, Debug)]
 struct AuthEndpoint {
