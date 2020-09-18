@@ -78,17 +78,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // find the running question I'm looking for
     let run_question = questions_json.as_array().unwrap().iter()
         .find(|question| question["title"].as_str().unwrap().eq(&String::from("Did you get to run today?"))).unwrap();
-    println!("question: {:?} \nanswer url: {:?}", run_question["title"], run_question["answers_url"]);
+    // println!("question: {:?} \nanswer url: {:?}", run_question["title"], run_question["answers_url"]);
 
     // 5. get the answers, and parse!
     let answer_url = run_question["answers_url"].as_str().unwrap().to_string();
-    let answers = client.get(&answer_url).send()?.json::<Vec<Answer>>()?;
-    println!("answers! {:?}", answers);
+    let answers_resp: reqwest::blocking::Response = client.get(&answer_url).send()?;
+    let mut answers_headers = answers_resp.headers().clone();
+    let mut answers_body = answers_resp.json::<Vec<Answer>>()?;
+    // println!("answers! {:?}", answers_body);
+
+    // loop through all the paginated answers until we have them all!
+    let mut link_header = answers_headers.get("link");
+    loop {
+        match link_header {
+            None => break,
+            Some(head) => {
+                let new_page = client.get(extract_link_header(head)).send()?;
+                answers_headers = new_page.headers().clone();
+                let mut new_page_body = new_page.json::<Vec<Answer>>()?;
+                link_header = answers_headers.get("link");
+                answers_body.append(&mut new_page_body);
+            }
+        }
+    }
+
+    println!("length of answers {}", answers_body.len());
+    // now I have all of the data... now what?
+
 
     Ok(())
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+/// manual extraction of the next page link in the Link value of the header
+// Maybe I should just ask for the whole HeaderMap and extract the link header myself?
+fn extract_link_header(link_header_value: &HeaderValue) -> &str {
+    link_header_value.to_str().unwrap().split_terminator(";").take(1).collect::<Vec<&str>>()
+        .first().unwrap().strip_prefix("<").unwrap().strip_suffix(">").unwrap()
+}
+
+/// struct used to parse the answers endpoint in step 5 of the API calls
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Answer {
     id: u64,
     status: String,
@@ -111,7 +140,7 @@ struct Answer {
     group_on: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Parent {
     id: u64,
     title: String,
@@ -120,14 +149,14 @@ struct Parent {
     app_url: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Bucket {
     id: u64,
     name: String,
     r#type: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Creator {
     id: u64,
     attachable_sgid: String,
@@ -146,7 +175,7 @@ struct Creator {
     company: Company,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Company {
     id: u64,
     name: String,
@@ -185,34 +214,24 @@ fn build_client (at: &oauth2::AccessToken) -> Result<reqwest::blocking::Client, 
     reqwest::blocking::ClientBuilder::new().default_headers(auth_header).user_agent("Run Counter").build()
 }
 
-fn get_auth_endpoint(at: &oauth2::AccessToken) -> Result<AuthEndpoint, reqwest::Error>{
-    // now I have two methods here that do the same thing, but in different ways
+// fn get_auth_endpoint(at: &oauth2::AccessToken) -> Result<AuthEndpoint, reqwest::Error>{
+//     // now I have two methods here that do the same thing, but in different ways
 
-    // method one: now I have a client with the token already set up, could be reused
-    let mut bearer_token = "Bearer ".to_string();
-    bearer_token.push_str(&at.secret().to_string());
-    let mut auth_header = reqwest::header::HeaderMap::new();
-    auth_header.insert(AUTHORIZATION, HeaderValue::from_str(&bearer_token).unwrap());
-    let client: reqwest::blocking::Client = reqwest::blocking::ClientBuilder::new().default_headers(auth_header).build()?;
-    let resp = client.get("https://launchpad.37signals.com/authorization.json").send()?;
+//     // method one: now I have a client with the token already set up, could be reused
+//     let mut bearer_token = "Bearer ".to_string();
+//     bearer_token.push_str(&at.secret().to_string());
+//     let mut auth_header = reqwest::header::HeaderMap::new();
+//     auth_header.insert(AUTHORIZATION, HeaderValue::from_str(&bearer_token).unwrap());
+//     let client: reqwest::blocking::Client = reqwest::blocking::ClientBuilder::new().default_headers(auth_header).build()?;
+//     let resp = client.get("https://launchpad.37signals.com/authorization.json").send()?;
 
-    // method two: very straightforward, easy to make a single request
-    // let resp: reqwest::blocking::Response = reqwest::blocking::Client::new()
-    //     .get("https://launchpad.37signals.com/authorization.json")
-    //     .bearer_auth(&at.secret().to_string())
-    //     .send()?;
-    // println!("auth response {:#?}", resp.text());
-    // println!("auth response {:#?}", resp.json::<AuthEndpoint>());
+//     // method two: very straightforward, easy to make a single request
+//     // let resp: reqwest::blocking::Response = reqwest::blocking::Client::new()
+//     //     .get("https://launchpad.37signals.com/authorization.json")
+//     //     .bearer_auth(&at.secret().to_string())
+//     //     .send()?;
+//     // println!("auth response {:#?}", resp.text());
+//     // println!("auth response {:#?}", resp.json::<AuthEndpoint>());
 
-    resp.json::<AuthEndpoint>()
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Ip {
-    origin: String,
-}
-
-fn get_data() -> Result<Ip, reqwest::Error> {
-    reqwest::blocking::get("https://httpbin.org/ip")?
-    .json::<Ip>()
-}
+//     resp.json::<AuthEndpoint>()
+// }
