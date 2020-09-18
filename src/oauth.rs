@@ -196,19 +196,19 @@ pub fn get_auth_token(c_id: String, c_secret: String) -> Result<SpecialTokenResp
       );
       stream.write_all(response.as_bytes()).unwrap();
 
-      println!(
-        "Basecamp returned the following state:\n{} (expected `{}`)\n",
-        state.secret(),
-        csrf_state.secret()
-      );
+      // println!(
+      //   "Basecamp returned the following state:\n{} (expected `{}`)\n",
+      //   state.secret(),
+      //   csrf_state.secret()
+      // );
 
       // Exchange the code with a token.
       let token_res = client.exchange_code(code).set_pkce_verifier(pkce_verifier).request(http_client);
 
-      println!("Basecamp returned the following token:\n{:?}\n", token_res);
+      // println!("Basecamp returned the following token:\n{:?}\n", token_res);
 
       if let Ok(token) = token_res {
-          println!("access token {:?}", token.access_token().secret());
+          // println!("access token {:?}", token.access_token().secret());
           // NB: Github returns a single comma-separated "scope" parameter instead of multiple
           // space-separated scopes. Github-specific clients can parse this scope into
           // multiple scopes by splitting at the commas. Note that it's not safe for the
