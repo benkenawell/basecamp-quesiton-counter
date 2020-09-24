@@ -224,7 +224,11 @@ pub fn get_auth_token(c_id: String, c_secret: String) -> Result<SpecialTokenResp
           };
           // println!("Basecamp returned the following scopes:\n{:?}\n", scopes);
 
-          return Ok(token);
+          if state.secret() == csrf_state.secret() {
+            return Ok(token);
+          } else {
+            return Err(String::from("Issue with issuing token"));
+          }
       }
 
       // The server will terminate itself after collecting the first code.

@@ -106,7 +106,7 @@ pub struct Answer {
     parent: Parent,
     bucket: Bucket,
     creator: Creator,
-    content: String,
+    pub content: String,
     group_on: String,
 }
 

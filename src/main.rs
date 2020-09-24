@@ -35,8 +35,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("length of answers {}", answers_body.len());
     // now I have all of the data... now what?
 
+    let (yes_counter, no_counter) = count_ans(&answers_body);
+    println!("yes: {}, no: {}", yes_counter, no_counter);
 
     Ok(())
+}
+
+fn count_ans (answers: &Vec<api::Answer>) -> (u32, u32) {
+    // remove the div tag
+    answers.iter().map(|ans| ans.content.as_str().strip_prefix("<div>").unwrap().strip_suffix("</div>").unwrap())
+    // take the first word, remove the trailing punctuation
+    .map(|ans| ans.split_ascii_whitespace().next().unwrap().trim_end_matches(|c| c == ',' || c == '.' || c == '!').to_lowercase())
+    // count the number of yes and no answers
+    .fold((0,0), |(yes, no), a| match a.as_str() {
+        "yes" => (yes + 1, no),
+        "no" => (yes, no + 1),
+        _x => (yes, no)
+    })
 }
 
 fn build_client (at: &oauth2::AccessToken) -> Result<reqwest::blocking::Client, reqwest::Error> {
@@ -46,25 +61,3 @@ fn build_client (at: &oauth2::AccessToken) -> Result<reqwest::blocking::Client, 
     auth_header.insert(AUTHORIZATION, HeaderValue::from_str(&bearer_token).unwrap());
     reqwest::blocking::ClientBuilder::new().default_headers(auth_header).user_agent("Run Counter").build()
 }
-
-// fn get_auth_endpoint(at: &oauth2::AccessToken) -> Result<AuthEndpoint, reqwest::Error>{
-//     // now I have two methods here that do the same thing, but in different ways
-
-//     // method one: now I have a client with the token already set up, could be reused
-//     let mut bearer_token = "Bearer ".to_string();
-//     bearer_token.push_str(&at.secret().to_string());
-//     let mut auth_header = reqwest::header::HeaderMap::new();
-//     auth_header.insert(AUTHORIZATION, HeaderValue::from_str(&bearer_token).unwrap());
-//     let client: reqwest::blocking::Client = reqwest::blocking::ClientBuilder::new().default_headers(auth_header).build()?;
-//     let resp = client.get("https://launchpad.37signals.com/authorization.json").send()?;
-
-//     // method two: very straightforward, easy to make a single request
-//     // let resp: reqwest::blocking::Response = reqwest::blocking::Client::new()
-//     //     .get("https://launchpad.37signals.com/authorization.json")
-//     //     .bearer_auth(&at.secret().to_string())
-//     //     .send()?;
-//     // println!("auth response {:#?}", resp.text());
-//     // println!("auth response {:#?}", resp.json::<AuthEndpoint>());
-
-//     resp.json::<AuthEndpoint>()
-// }
