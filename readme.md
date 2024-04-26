@@ -1,3 +1,5 @@
+_I enjoyed this project, learned a lot about OAuth, but I don't use Basecamp for this anymore so I've decided to Archive this repo._
+
 # Project Basecamp
 
 I have been keeping track of the days I've run an when I haven't via a question Basecamp asks me everyday.
